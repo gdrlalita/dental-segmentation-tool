@@ -1,458 +1,772 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Dental 3D Segmentation Tool</title>
+<title>Dental 3D Segmentation Tool - V2</title>
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+<style>
+* {
+    box-sizing: border-box;
+}
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f4f7fb;
-      color: #222;
-    }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    color: #222;
+}
 
-    header {
-      background: #253b59;
-      color: white;
-      padding: 18px 20px;
-      text-align: center;
-    }
+header {
+    background: #17365d;
+    color: white;
+    padding: 18px 20px;
+    text-align: center;
+}
 
-    header h1 {
-      margin: 0 0 6px;
-      font-size: 25px;
-    }
+header h1 {
+    margin: 0;
+    font-size: 25px;
+}
 
-    header p {
-      margin: 0;
-      font-size: 14px;
-      opacity: 0.9;
-    }
+header p {
+    margin: 7px 0 0;
+    opacity: 0.9;
+}
 
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      padding: 12px 15px;
-      background: white;
-      border-bottom: 1px solid #ddd;
-    }
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    background: white;
+    border-bottom: 1px solid #d7dce3;
+}
 
-    button,
-    label.load-button {
-      border: none;
-      background: #315a86;
-      color: white;
-      padding: 10px 16px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
+button,
+.file-label {
+    border: 0;
+    border-radius: 7px;
+    padding: 10px 15px;
+    background: #2563eb;
+    color: white;
+    cursor: pointer;
+    font-size: 14px;
+}
 
-    button:hover,
-    label.load-button:hover {
-      background: #24486d;
-    }
+button:hover,
+.file-label:hover {
+    opacity: 0.88;
+}
 
-    input[type="file"] {
-      display: none;
-    }
+button.secondary {
+    background: #64748b;
+}
 
-    #status {
-      padding: 10px 15px;
-      background: #eef3f8;
-      font-size: 14px;
-      color: #444;
-      border-bottom: 1px solid #ddd;
-    }
+button.select-mode {
+    background: #16a34a;
+}
 
-    #viewer {
-      width: 100%;
-      height: calc(100vh - 185px);
-      min-height: 450px;
-      position: relative;
-      overflow: hidden;
-      background: #dfe5ec;
-    }
+button.select-mode.active {
+    background: #dc2626;
+}
 
-    #message {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      text-align: center;
-      color: #536273;
-      font-size: 18px;
-      pointer-events: none;
-      padding: 20px;
-    }
+#fileInput {
+    display: none;
+}
 
-    canvas {
-      display: block;
+.status {
+    padding: 9px 14px;
+    background: #eef4ff;
+    border-bottom: 1px solid #d7dce3;
+    font-size: 14px;
+}
+
+.workspace {
+    position: relative;
+    height: calc(100vh - 155px);
+    min-height: 500px;
+    background: #dfe7f0;
+    overflow: hidden;
+}
+
+#viewer {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.instructions {
+    position: absolute;
+    left: 15px;
+    bottom: 15px;
+    background: rgba(255,255,255,0.94);
+    padding: 12px 15px;
+    border-radius: 9px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    max-width: 330px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.selection-info {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    background: rgba(255,255,255,0.95);
+    padding: 12px 15px;
+    border-radius: 9px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+    display: none;
+    min-width: 180px;
+}
+
+.selection-info strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+@media (max-width: 700px) {
+    .workspace {
+        height: calc(100vh - 205px);
     }
 
     .instructions {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      background: rgba(255,255,255,0.9);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      color: #555;
-      pointer-events: none;
+        max-width: 250px;
+        font-size: 12px;
     }
-  </style>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-    }
-  }
-  </script>
+}
+</style>
 </head>
 
 <body>
 
-  <header>
+<header>
     <h1>Dental 3D Segmentation Tool</h1>
     <p>Open-source workspace for dental scans and orthodontic setup</p>
-  </header>
+</header>
 
-  <div class="toolbar">
+<div class="toolbar">
 
-    <label class="load-button">
-      📁 Load Dental Scan
-      <input type="file" id="fileInput" accept=".stl">
+    <label class="file-label">
+        📁 Load Dental Scan
+        <input type="file" id="fileInput" accept=".stl,.STL">
     </label>
 
-    <button id="resetButton">🔄 Reset View</button>
+    <button id="selectButton" class="select-mode">
+        🦷 Select Tooth
+    </button>
 
-    <button id="aboutButton">ℹ️ About</button>
+    <button id="resetButton" class="secondary">
+        Reset View
+    </button>
 
-  </div>
+    <button id="clearButton" class="secondary">
+        Clear Selection
+    </button>
 
-  <div id="status">
-    No dental scan loaded.
-  </div>
+    <button id="aboutButton" class="secondary">
+        About
+    </button>
 
-  <div id="viewer">
+</div>
 
-    <div id="message">
-      Load an STL dental scan to begin.
-    </div>
+<div class="status" id="status">
+    Ready. Load an STL dental scan.
+</div>
+
+<div class="workspace">
+
+    <canvas id="viewer"></canvas>
 
     <div class="instructions">
-      🖱️ Drag = rotate &nbsp; | &nbsp;
-      Wheel = zoom &nbsp; | &nbsp; Right drag = pan
+        <strong>V2 Tooth Selection</strong><br>
+        1. Load your STL.<br>
+        2. Click <b>Select Tooth</b>.<br>
+        3. Click on the dental model.<br>
+        4. The clicked area will be highlighted.<br><br>
+        Drag to rotate and use the touchpad wheel/pinch to zoom.
     </div>
 
-  </div>
+    <div class="selection-info" id="selectionInfo">
+        <strong>Selected area</strong>
+        <span id="selectionText">Ready</span>
+    </div>
 
-  <script type="module">
+</div>
 
-    import * as THREE from "three";
-    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-    import { STLLoader } from "three/addons/loaders/STLLoader.js";
+<script type="importmap">
+{
+    "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+}
+</script>
 
-    const viewer = document.getElementById("viewer");
-    const fileInput = document.getElementById("fileInput");
-    const status = document.getElementById("status");
-    const message = document.getElementById("message");
-    const resetButton = document.getElementById("resetButton");
-    const aboutButton = document.getElementById("aboutButton");
+<script type="module">
 
-    const scene = new THREE.Scene();
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { STLLoader } from "three/addons/loaders/STLLoader.js";
 
-    scene.background = new THREE.Color(0xdfe5ec);
+const canvas = document.getElementById("viewer");
+const fileInput = document.getElementById("fileInput");
+const status = document.getElementById("status");
 
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      viewer.clientWidth / viewer.clientHeight,
-      0.01,
-      100000
+const selectButton = document.getElementById("selectButton");
+const resetButton = document.getElementById("resetButton");
+const clearButton = document.getElementById("clearButton");
+const aboutButton = document.getElementById("aboutButton");
+
+const selectionInfo = document.getElementById("selectionInfo");
+const selectionText = document.getElementById("selectionText");
+
+let scene;
+let camera;
+let renderer;
+let controls;
+
+let dentalMesh = null;
+let originalMaterial = null;
+
+let selecting = false;
+let selectedPatch = null;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+const loader = new STLLoader();
+
+init();
+animate();
+
+function init() {
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xdfe7f0);
+
+    camera = new THREE.PerspectiveCamera(
+        45,
+        canvas.clientWidth / canvas.clientHeight,
+        0.1,
+        10000
     );
 
-    camera.position.set(0, 0, 100);
+    camera.position.set(0, 0, 120);
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true
+    renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true
     });
 
-    renderer.setPixelRatio(
-      Math.min(window.devicePixelRatio, 2)
-    );
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     renderer.setSize(
-      viewer.clientWidth,
-      viewer.clientHeight
+        canvas.clientWidth,
+        canvas.clientHeight,
+        false
     );
 
-    viewer.appendChild(renderer.domElement);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+    scene.add(ambientLight);
 
-    const controls = new OrbitControls(
-      camera,
-      renderer.domElement
-    );
+    const directionalLight1 =
+        new THREE.DirectionalLight(0xffffff, 2.0);
+
+    directionalLight1.position.set(100, 100, 100);
+    scene.add(directionalLight1);
+
+    const directionalLight2 =
+        new THREE.DirectionalLight(0xffffff, 1.2);
+
+    directionalLight2.position.set(-100, 50, -100);
+    scene.add(directionalLight2);
+
+    controls = new OrbitControls(camera, renderer.domElement);
 
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
-    controls.screenSpacePanning = true;
 
-    const ambientLight = new THREE.AmbientLight(
-      0xffffff,
-      1.8
-    );
+    controls.enablePan = true;
+    controls.enableZoom = true;
+    controls.enableRotate = true;
 
-    scene.add(ambientLight);
+    window.addEventListener("resize", onWindowResize);
 
-    const light1 = new THREE.DirectionalLight(
-      0xffffff,
-      2.5
-    );
+    canvas.addEventListener("pointerdown", onViewerClick);
 
-    light1.position.set(100, 100, 100);
+    selectButton.addEventListener("click", toggleSelectionMode);
+    resetButton.addEventListener("click", resetView);
+    clearButton.addEventListener("click", clearSelection);
+    aboutButton.addEventListener("click", showAbout);
 
-    scene.add(light1);
+    status.textContent =
+        "Ready. Load an STL dental scan.";
+}
 
-    const light2 = new THREE.DirectionalLight(
-      0xffffff,
-      1.5
-    );
+function animate() {
 
-    light2.position.set(-100, -50, 50);
+    requestAnimationFrame(animate);
 
-    scene.add(light2);
+    controls.update();
 
-    const loader = new STLLoader();
+    renderer.render(scene, camera);
+}
 
-    let currentMesh = null;
+function onWindowResize() {
 
-    fileInput.addEventListener("change", function(event) {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
 
-      const file = event.target.files[0];
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
 
-      if (!file) {
+    renderer.setSize(width, height, false);
+}
+
+fileInput.addEventListener("change", function(event) {
+
+    const file = event.target.files[0];
+
+    if (!file) {
         return;
-      }
+    }
 
-      if (!file.name.toLowerCase().endsWith(".stl")) {
+    if (!file.name.toLowerCase().endsWith(".stl")) {
 
         status.textContent =
-          "Please select a genuine STL file.";
+            "Please choose a genuine STL file.";
 
         return;
-      }
+    }
 
-      status.textContent =
-        "Loading: " + file.name + " ...";
+    status.textContent =
+        "Loading " + file.name + "...";
 
-      message.style.display = "none";
+    const reader = new FileReader();
 
-      const reader = new FileReader();
-
-      reader.onload = function(e) {
+    reader.onload = function(e) {
 
         try {
 
-          const geometry = loader.parse(e.target.result);
+            const geometry =
+                loader.parse(e.target.result);
 
-          geometry.computeVertexNormals();
+            geometry.computeVertexNormals();
 
-          geometry.center();
-
-          const material = new THREE.MeshStandardMaterial({
-            color: 0xe8d8c5,
-            roughness: 0.65,
-            metalness: 0.05
-          });
-
-          const mesh = new THREE.Mesh(
-            geometry,
-            material
-          );
-
-          if (currentMesh) {
-
-            scene.remove(currentMesh);
-
-            currentMesh.geometry.dispose();
-
-            currentMesh.material.dispose();
-
-          }
-
-          currentMesh = mesh;
-
-          scene.add(currentMesh);
-
-          fitCameraToObject(currentMesh);
-
-          status.textContent =
-            "Loaded: " +
-            file.name +
-            " (" +
-            formatFileSize(file.size) +
-            ")";
+            loadDentalModel(geometry, file.name);
 
         } catch (error) {
 
-          console.error(error);
+            console.error(error);
 
-          status.textContent =
-            "Could not load this file as an STL.";
-
-          message.textContent =
-            "The selected file could not be read as a valid STL.";
-
-          message.style.display = "flex";
-
+            status.textContent =
+                "Could not read this STL file.";
         }
+    };
 
-      };
+    reader.readAsArrayBuffer(file);
+});
 
-      reader.readAsArrayBuffer(file);
+function loadDentalModel(geometry, fileName) {
 
-    });
+    if (dentalMesh) {
 
-    function fitCameraToObject(object) {
+        scene.remove(dentalMesh);
 
-      const box = new THREE.Box3().setFromObject(object);
+        dentalMesh.geometry.dispose();
+        dentalMesh.material.dispose();
 
-      const size = box.getSize(new THREE.Vector3());
+        dentalMesh = null;
+    }
 
-      const center = box.getCenter(new THREE.Vector3());
+    clearSelection();
 
-      const maxDimension =
+    geometry.center();
+
+    geometry.computeBoundingBox();
+
+    const box = geometry.boundingBox;
+
+    const size = new THREE.Vector3();
+
+    box.getSize(size);
+
+    const maxDimension =
         Math.max(size.x, size.y, size.z);
 
-      const distance =
-        maxDimension /
+    const scale =
+        80 / maxDimension;
+
+    geometry.scale(scale, scale, scale);
+
+    geometry.computeBoundingBox();
+
+    originalMaterial = new THREE.MeshStandardMaterial({
+        color: 0xf2d6b3,
+        roughness: 0.72,
+        metalness: 0.02
+    });
+
+    dentalMesh =
+        new THREE.Mesh(geometry, originalMaterial);
+
+    scene.add(dentalMesh);
+
+    fitCameraToObject(dentalMesh);
+
+    status.textContent =
+        "Loaded: " + fileName +
+        " — Select Tooth mode is ready.";
+
+    selectionInfo.style.display = "none";
+}
+
+function fitCameraToObject(object) {
+
+    const box =
+        new THREE.Box3().setFromObject(object);
+
+    const center =
+        box.getCenter(new THREE.Vector3());
+
+    const size =
+        box.getSize(new THREE.Vector3());
+
+    const maxSize =
+        Math.max(size.x, size.y, size.z);
+
+    const fitHeightDistance =
+        maxSize /
         (2 * Math.tan(
-          THREE.MathUtils.degToRad(
-            camera.fov / 2
-          )
+            THREE.MathUtils.degToRad(camera.fov * 0.5)
         ));
 
-      camera.position.set(
+    const fitWidthDistance =
+        fitHeightDistance / camera.aspect;
+
+    const distance =
+        Math.max(fitHeightDistance, fitWidthDistance) * 1.4;
+
+    camera.position.set(
         center.x,
         center.y,
-        center.z + distance * 1.5
-      );
+        center.z + distance
+    );
 
-      camera.near =
-        Math.max(maxDimension / 1000, 0.01);
+    camera.near = Math.max(distance / 100, 0.01);
+    camera.far = distance * 100;
 
-      camera.far =
-        Math.max(maxDimension * 100, 1000);
+    camera.updateProjectionMatrix();
 
-      camera.updateProjectionMatrix();
+    controls.target.copy(center);
+    controls.update();
+}
 
-      controls.target.copy(center);
+function toggleSelectionMode() {
 
-      controls.update();
+    selecting = !selecting;
 
+    if (selecting) {
+
+        selectButton.textContent =
+            "🛑 Exit Select Mode";
+
+        selectButton.classList.add("active");
+
+        status.textContent =
+            "Select Tooth mode ON — click the dental model.";
+
+        canvas.style.cursor = "crosshair";
+
+    } else {
+
+        selectButton.textContent =
+            "🦷 Select Tooth";
+
+        selectButton.classList.remove("active");
+
+        status.textContent =
+            "Select Tooth mode OFF.";
+
+        canvas.style.cursor = "default";
+    }
+}
+
+function onViewerClick(event) {
+
+    if (!selecting) {
+        return;
     }
 
-    resetButton.addEventListener(
-      "click",
-      function() {
+    if (!dentalMesh) {
 
-        if (currentMesh) {
+        status.textContent =
+            "Load an STL before selecting.";
 
-          fitCameraToObject(currentMesh);
+        return;
+    }
 
+    const rect =
+        canvas.getBoundingClientRect();
+
+    mouse.x =
+        ((event.clientX - rect.left) / rect.width) * 2 - 1;
+
+    mouse.y =
+        -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const intersections =
+        raycaster.intersectObject(dentalMesh, false);
+
+    if (intersections.length === 0) {
+
+        status.textContent =
+            "Nothing selected. Click directly on the dental model.";
+
+        return;
+    }
+
+    const hit =
+        intersections[0];
+
+    highlightLocalArea(hit.point);
+
+    status.textContent =
+        "Area selected. This is the V2 selection prototype.";
+
+    selectionInfo.style.display = "block";
+
+    selectionText.textContent =
+        "Selected surface area";
+}
+
+function highlightLocalArea(worldPoint) {
+
+    clearSelection();
+
+    const geometry =
+        dentalMesh.geometry;
+
+    const position =
+        geometry.attributes.position;
+
+    const vertexCount =
+        position.count;
+
+    const localPoint =
+        dentalMesh.worldToLocal(
+            worldPoint.clone()
+        );
+
+    let nearestVertex = 0;
+    let nearestDistance = Infinity;
+
+    const temp = new THREE.Vector3();
+
+    for (let i = 0; i < vertexCount; i++) {
+
+        temp.fromBufferAttribute(position, i);
+
+        const distance =
+            temp.distanceToSquared(localPoint);
+
+        if (distance < nearestDistance) {
+
+            nearestDistance = distance;
+            nearestVertex = i;
         }
-
-      }
-    );
-
-    aboutButton.addEventListener(
-      "click",
-      function() {
-
-        alert(
-          "Dental 3D Segmentation Tool\n\n" +
-          "Current version: 3D STL Viewer\n\n" +
-          "Planned development:\n" +
-          "• Tooth selection\n" +
-          "• Tooth segmentation\n" +
-          "• FDI numbering\n" +
-          "• Individual tooth export\n" +
-          "• Tooth movement\n" +
-          "• Orthodontic staging\n\n" +
-          "Dentist-controlled development."
-        );
-
-      }
-    );
-
-    function formatFileSize(bytes) {
-
-      if (bytes < 1024) {
-        return bytes + " B";
-      }
-
-      if (bytes < 1024 * 1024) {
-
-        return (
-          (bytes / 1024).toFixed(1) +
-          " KB"
-        );
-
-      }
-
-      return (
-        (bytes / (1024 * 1024)).toFixed(1) +
-        " MB"
-      );
-
     }
 
-    window.addEventListener(
-      "resize",
-      function() {
-
-        camera.aspect =
-          viewer.clientWidth /
-          viewer.clientHeight;
-
-        camera.updateProjectionMatrix();
-
-        renderer.setSize(
-          viewer.clientWidth,
-          viewer.clientHeight
+    const center =
+        new THREE.Vector3().fromBufferAttribute(
+            position,
+            nearestVertex
         );
 
-      }
-    );
+    const highlightGeometry =
+        geometry.clone();
 
-    function animate() {
+    const highlightMaterial =
+        new THREE.MeshStandardMaterial({
+            color: 0xff4d6d,
+            roughness: 0.55,
+            metalness: 0.02,
+            transparent: true,
+            opacity: 0.78,
+            depthWrite: false
+        });
 
-      requestAnimationFrame(animate);
+    const highlightMesh =
+        new THREE.Mesh(
+            highlightGeometry,
+            highlightMaterial
+        );
 
-      controls.update();
+    highlightMesh.position.copy(dentalMesh.position);
+    highlightMesh.rotation.copy(dentalMesh.rotation);
+    highlightMesh.scale.copy(dentalMesh.scale);
 
-      renderer.render(
-        scene,
-        camera
-      );
+    const pos =
+        highlightGeometry.attributes.position;
 
+    const radius =
+        Math.max(
+            geometry.boundingSphere
+                ? geometry.boundingSphere.radius * 0.11
+                : 4,
+            1.5
+        );
+
+    const radiusSquared =
+        radius * radius;
+
+    const index =
+        highlightGeometry.index;
+
+    const visible =
+        new Uint8Array(
+            index ? index.count : pos.count
+        );
+
+    for (
+        let i = 0;
+        i < (index ? index.count : pos.count);
+        i++
+    ) {
+
+        const vertexIndex =
+            index
+                ? index.getX(i)
+                : i;
+
+        temp.fromBufferAttribute(
+            pos,
+            vertexIndex
+        );
+
+        if (
+            temp.distanceToSquared(center)
+            <= radiusSquared
+        ) {
+            visible[i] = 1;
+        }
     }
 
-    animate();
+    const selectedPositions = [];
 
-  </script>
+    for (
+        let i = 0;
+        i < (index ? index.count : pos.count);
+        i += 3
+    ) {
+
+        const a = visible[i];
+        const b = visible[i + 1];
+        const c = visible[i + 2];
+
+        if (a || b || c) {
+
+            for (let j = 0; j < 3; j++) {
+
+                const vertexIndex =
+                    index
+                        ? index.getX(i + j)
+                        : i + j;
+
+                selectedPositions.push(
+                    pos.getX(vertexIndex),
+                    pos.getY(vertexIndex),
+                    pos.getZ(vertexIndex)
+                );
+            }
+        }
+    }
+
+    if (selectedPositions.length === 0) {
+
+        highlightGeometry.dispose();
+        highlightMaterial.dispose();
+
+        return;
+    }
+
+    highlightGeometry.dispose();
+
+    const patchGeometry =
+        new THREE.BufferGeometry();
+
+    patchGeometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+            selectedPositions,
+            3
+        )
+    );
+
+    patchGeometry.computeVertexNormals();
+
+    selectedPatch =
+        new THREE.Mesh(
+            patchGeometry,
+            highlightMaterial
+        );
+
+    scene.add(selectedPatch);
+}
+
+function clearSelection() {
+
+    if (selectedPatch) {
+
+        scene.remove(selectedPatch);
+
+        selectedPatch.geometry.dispose();
+        selectedPatch.material.dispose();
+
+        selectedPatch = null;
+    }
+
+    selectionInfo.style.display = "none";
+}
+
+function resetView() {
+
+    if (!dentalMesh) {
+
+        status.textContent =
+            "Load an STL first.";
+
+        return;
+    }
+
+    fitCameraToObject(dentalMesh);
+
+    status.textContent =
+        "View reset.";
+}
+
+function showAbout() {
+
+    alert(
+        "Dental 3D Segmentation Tool\\n\\n" +
+        "V2 prototype\\n\\n" +
+        "Current features:\\n" +
+        "• STL loading\\n" +
+        "• 3D rotation\\n" +
+        "• Zoom and pan\\n" +
+        "• Tooth selection prototype\\n" +
+        "• Highlight selected surface area\\n\\n" +
+        "Future versions will add true tooth segmentation, " +
+        "FDI numbering, individual tooth export and orthodontic setup."
+    );
+}
+
+</script>
 
 </body>
 </html>
