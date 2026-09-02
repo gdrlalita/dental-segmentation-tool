@@ -3,92 +3,123 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dental Segmentation Tool</title>
+
+  <title>Dental 3D Segmentation Tool</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #f4f1f8;
+      background: #f4f7fb;
       color: #222;
     }
 
     header {
-      background: #3f3151;
+      background: #253b59;
       color: white;
-      padding: 18px;
+      padding: 18px 20px;
       text-align: center;
     }
 
     header h1 {
-      margin: 0;
-      font-size: 24px;
+      margin: 0 0 6px;
+      font-size: 25px;
     }
 
     header p {
-      margin: 6px 0 0;
+      margin: 0;
       font-size: 14px;
+      opacity: 0.9;
     }
 
     .toolbar {
-      padding: 15px;
-      background: white;
-      border-bottom: 1px solid #ddd;
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      justify-content: center;
+      padding: 12px 15px;
+      background: white;
+      border-bottom: 1px solid #ddd;
     }
 
     button,
-    .file-label {
+    label.load-button {
       border: none;
-      padding: 10px 16px;
-      border-radius: 8px;
-      background: #6f5a83;
+      background: #315a86;
       color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
       cursor: pointer;
       font-size: 14px;
     }
 
     button:hover,
-    .file-label:hover {
-      background: #574466;
+    label.load-button:hover {
+      background: #24486d;
     }
 
-    #fileInput {
+    input[type="file"] {
       display: none;
     }
 
-    .workspace {
-      height: calc(100vh - 150px);
-      min-height: 500px;
-      background: #dedbe3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .welcome {
-      text-align: center;
-      max-width: 500px;
-      padding: 30px;
-    }
-
-    .welcome h2 {
-      margin-bottom: 10px;
-    }
-
-    .welcome p {
-      color: #555;
-      line-height: 1.6;
+    #status {
+      padding: 10px 15px;
+      background: #eef3f8;
+      font-size: 14px;
+      color: #444;
+      border-bottom: 1px solid #ddd;
     }
 
     #viewer {
       width: 100%;
-      height: 100%;
+      height: calc(100vh - 185px);
+      min-height: 450px;
+      position: relative;
+      overflow: hidden;
+      background: #dfe5ec;
+    }
+
+    #message {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      color: #536273;
+      font-size: 18px;
+      pointer-events: none;
+      padding: 20px;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .instructions {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(255,255,255,0.9);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #555;
+      pointer-events: none;
     }
   </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    }
+  }
+  </script>
 </head>
 
 <body>
@@ -100,71 +131,326 @@
 
   <div class="toolbar">
 
-    <label class="file-label" for="fileInput">
-      📂 Load Dental Scan
+    <label class="load-button">
+      📁 Load Dental Scan
+      <input type="file" id="fileInput" accept=".stl">
     </label>
 
-    <input
-      type="file"
-      id="fileInput"
-      accept=".stl,.ply,.obj"
-    >
+    <button id="resetButton">🔄 Reset View</button>
 
-    <button onclick="resetView()">Reset View</button>
-
-    <button onclick="showAbout()">About</button>
+    <button id="aboutButton">ℹ️ About</button>
 
   </div>
 
-  <div class="workspace" id="viewer">
+  <div id="status">
+    No dental scan loaded.
+  </div>
 
-    <div class="welcome">
-      <h2>Dental 3D Workspace</h2>
+  <div id="viewer">
 
-      <p>
-        Load an STL, PLY or OBJ dental scan to begin.
-      </p>
+    <div id="message">
+      Load an STL dental scan to begin.
+    </div>
 
-      <p>
-        Future versions will include tooth segmentation,
-        FDI numbering, individual tooth export,
-        tooth movement and orthodontic staging.
-      </p>
+    <div class="instructions">
+      🖱️ Drag = rotate &nbsp; | &nbsp;
+      Wheel = zoom &nbsp; | &nbsp; Right drag = pan
     </div>
 
   </div>
 
-  <script>
+  <script type="module">
 
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { STLLoader } from "three/addons/loaders/STLLoader.js";
+
+    const viewer = document.getElementById("viewer");
     const fileInput = document.getElementById("fileInput");
+    const status = document.getElementById("status");
+    const message = document.getElementById("message");
+    const resetButton = document.getElementById("resetButton");
+    const aboutButton = document.getElementById("aboutButton");
 
-    fileInput.addEventListener("change", function () {
+    const scene = new THREE.Scene();
 
-      if (this.files.length > 0) {
+    scene.background = new THREE.Color(0xdfe5ec);
 
-        const file = this.files[0];
+    const camera = new THREE.PerspectiveCamera(
+      45,
+      viewer.clientWidth / viewer.clientHeight,
+      0.01,
+      100000
+    );
 
-        document.querySelector(".welcome").innerHTML = `
-          <h2>Scan Loaded</h2>
-          <p><strong>${file.name}</strong></p>
-          <p>3D viewer connection will be added in the next step.</p>
-        `;
+    camera.position.set(0, 0, 100);
 
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, 2)
+    );
+
+    renderer.setSize(
+      viewer.clientWidth,
+      viewer.clientHeight
+    );
+
+    viewer.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(
+      camera,
+      renderer.domElement
+    );
+
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.screenSpacePanning = true;
+
+    const ambientLight = new THREE.AmbientLight(
+      0xffffff,
+      1.8
+    );
+
+    scene.add(ambientLight);
+
+    const light1 = new THREE.DirectionalLight(
+      0xffffff,
+      2.5
+    );
+
+    light1.position.set(100, 100, 100);
+
+    scene.add(light1);
+
+    const light2 = new THREE.DirectionalLight(
+      0xffffff,
+      1.5
+    );
+
+    light2.position.set(-100, -50, 50);
+
+    scene.add(light2);
+
+    const loader = new STLLoader();
+
+    let currentMesh = null;
+
+    fileInput.addEventListener("change", function(event) {
+
+      const file = event.target.files[0];
+
+      if (!file) {
+        return;
       }
+
+      if (!file.name.toLowerCase().endsWith(".stl")) {
+
+        status.textContent =
+          "Please select a genuine STL file.";
+
+        return;
+      }
+
+      status.textContent =
+        "Loading: " + file.name + " ...";
+
+      message.style.display = "none";
+
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+
+        try {
+
+          const geometry = loader.parse(e.target.result);
+
+          geometry.computeVertexNormals();
+
+          geometry.center();
+
+          const material = new THREE.MeshStandardMaterial({
+            color: 0xe8d8c5,
+            roughness: 0.65,
+            metalness: 0.05
+          });
+
+          const mesh = new THREE.Mesh(
+            geometry,
+            material
+          );
+
+          if (currentMesh) {
+
+            scene.remove(currentMesh);
+
+            currentMesh.geometry.dispose();
+
+            currentMesh.material.dispose();
+
+          }
+
+          currentMesh = mesh;
+
+          scene.add(currentMesh);
+
+          fitCameraToObject(currentMesh);
+
+          status.textContent =
+            "Loaded: " +
+            file.name +
+            " (" +
+            formatFileSize(file.size) +
+            ")";
+
+        } catch (error) {
+
+          console.error(error);
+
+          status.textContent =
+            "Could not load this file as an STL.";
+
+          message.textContent =
+            "The selected file could not be read as a valid STL.";
+
+          message.style.display = "flex";
+
+        }
+
+      };
+
+      reader.readAsArrayBuffer(file);
 
     });
 
-    function resetView() {
-      alert("3D view reset will be added in the next version.");
+    function fitCameraToObject(object) {
+
+      const box = new THREE.Box3().setFromObject(object);
+
+      const size = box.getSize(new THREE.Vector3());
+
+      const center = box.getCenter(new THREE.Vector3());
+
+      const maxDimension =
+        Math.max(size.x, size.y, size.z);
+
+      const distance =
+        maxDimension /
+        (2 * Math.tan(
+          THREE.MathUtils.degToRad(
+            camera.fov / 2
+          )
+        ));
+
+      camera.position.set(
+        center.x,
+        center.y,
+        center.z + distance * 1.5
+      );
+
+      camera.near =
+        Math.max(maxDimension / 1000, 0.01);
+
+      camera.far =
+        Math.max(maxDimension * 100, 1000);
+
+      camera.updateProjectionMatrix();
+
+      controls.target.copy(center);
+
+      controls.update();
+
     }
 
-    function showAbout() {
-      alert(
-        "Dental 3D Segmentation Tool\\n\\n" +
-        "An open-source project for dental scan segmentation " +
-        "and orthodontic setup."
+    resetButton.addEventListener(
+      "click",
+      function() {
+
+        if (currentMesh) {
+
+          fitCameraToObject(currentMesh);
+
+        }
+
+      }
+    );
+
+    aboutButton.addEventListener(
+      "click",
+      function() {
+
+        alert(
+          "Dental 3D Segmentation Tool\n\n" +
+          "Current version: 3D STL Viewer\n\n" +
+          "Planned development:\n" +
+          "• Tooth selection\n" +
+          "• Tooth segmentation\n" +
+          "• FDI numbering\n" +
+          "• Individual tooth export\n" +
+          "• Tooth movement\n" +
+          "• Orthodontic staging\n\n" +
+          "Dentist-controlled development."
+        );
+
+      }
+    );
+
+    function formatFileSize(bytes) {
+
+      if (bytes < 1024) {
+        return bytes + " B";
+      }
+
+      if (bytes < 1024 * 1024) {
+
+        return (
+          (bytes / 1024).toFixed(1) +
+          " KB"
+        );
+
+      }
+
+      return (
+        (bytes / (1024 * 1024)).toFixed(1) +
+        " MB"
       );
+
     }
+
+    window.addEventListener(
+      "resize",
+      function() {
+
+        camera.aspect =
+          viewer.clientWidth /
+          viewer.clientHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+          viewer.clientWidth,
+          viewer.clientHeight
+        );
+
+      }
+    );
+
+    function animate() {
+
+      requestAnimationFrame(animate);
+
+      controls.update();
+
+      renderer.render(
+        scene,
+        camera
+      );
+
+    }
+
+    animate();
 
   </script>
 
