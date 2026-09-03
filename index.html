@@ -244,6 +244,7 @@ let originalMaterial = null;
 
 let selecting = false;
 let selectedPatch = null;
+    let extractedToothCandidate = null;
     let selectedSeedPoint = null;
     // ===== CASE AND TOOTH DATA MODEL =====
 
@@ -818,7 +819,14 @@ function highlightLocalArea(worldPoint) {
         selectedPatch = null;
     }
 
-    selectionInfo.style.display = "none";
+    
+        if (extractedToothCandidate) {
+    scene.remove(extractedToothCandidate);
+    extractedToothCandidate.geometry.dispose();
+    extractedToothCandidate.material.dispose();
+    extractedToothCandidate = null;
+}
+        selectionInfo.style.display = "none";
 }
 
 function resetView() {
