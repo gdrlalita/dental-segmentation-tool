@@ -226,6 +226,13 @@ const aboutButton = document.getElementById("aboutButton");
 
 const selectionInfo = document.getElementById("selectionInfo");
 const selectionText = document.getElementById("selectionText");
+    const analysisInfo = document.createElement("div");
+analysisInfo.id = "analysisInfo";
+analysisInfo.style.display = "none";
+document.body.appendChild(analysisInfo);
+const analysisText = document.createElement("div");
+analysisText.id = "analysisText";
+analysisInfo.appendChild(analysisText);
 
 let scene;
 let camera;
@@ -933,6 +940,10 @@ function countConnectedComponents(geometry) {
 }
 
 </script>
+<div id="analysisInfo" style="display:none; margin:20px; padding:15px; background:white; border-radius:8px;">
+  <strong>Mesh Analysis</strong>
+  <div id="analysisText"></div>
+</div>
 
 </body>
 </html>
