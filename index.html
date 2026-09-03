@@ -644,24 +644,167 @@ function highlightLocalArea(worldPoint) {
     status.textContent =
         "Tooth area selected. This is a segmentation candidate.";
 }   
-function createSegmentationCandidate() {
+  selectionInfo.style.display = "block";
+    "Segmentation seed recorded at the selected tooth surface.";
+
+    function createSegmentationCandidate() {
     if (!dentalMesh || !selectedSeedPoint) {
         status.textContent = "Select a tooth surface first.";
         return;
     }
 
-    status.textContent = "Preparing segmentation candidate...";
+    status.textContent = "Extracting local tooth region...";
 
-    // For now, use the stored 3D click point as the seed.
-    // The next stage will grow this seed into an actual tooth surface region.
-    const seed = selectedSeedPoint.clone();
+    const sourceGeometry = dentalMesh.geometry;
+    const position = sourceGeometry.attributes.position;
+
+    // Convert the clicked world point into the dental model's local coordinates
+    const localSeed = dentalMesh.worldToLocal(
+        selectedSeedPoint.clone()
+    );
+
+    const triangleCount = position.count / 3;
+
+    // Find the triangle closest to the clicked seed
+    let seedTriangle = 0;
+    let bestDistance = Infinity;
+
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const center = new THREE.Vector3();
+
+    for (let t = 0; t < triangleCount; t++) {
+        const i = t * 9;
+
+        a.set(
+            position.array[i],
+            position.array[i + 1],
+            position.array[i + 2]
+        );
+
+        b.set(
+            position.array[i + 3],
+            position.array[i + 4],
+            position.array[i + 5]
+        );
+
+        c.set(
+            position.array[i + 6],
+            position.array[i + 7],
+            position.array[i + 8]
+        );
+
+        center.copy(a)
+            .add(b)
+            .add(c)
+            .multiplyScalar(1 / 3);
+
+        const distance = center.distanceToSquared(localSeed);
+
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            seedTriangle = t;
+        }
+    }
+
+    // Estimate a local tooth size from the complete model
+    const box = new THREE.Box3().setFromObject(dentalMesh);
+    const modelSize = new THREE.Vector3();
+    box.getSize(modelSize);
+
+    const growthRadius =
+        Math.max(modelSize.x, modelSize.y, modelSize.z) * 0.08;
+
+    const selectedTriangles = [];
+
+    // Local surface-region extraction
+    for (let t = 0; t < triangleCount; t++) {
+        const i = t * 9;
+
+        a.set(
+            position.array[i],
+            position.array[i + 1],
+            position.array[i + 2]
+        );
+
+        b.set(
+            position.array[i + 3],
+            position.array[i + 4],
+            position.array[i + 5]
+        );
+
+        c.set(
+            position.array[i + 6],
+            position.array[i + 7],
+            position.array[i + 8]
+        );
+
+        center.copy(a)
+            .add(b)
+            .add(c)
+            .multiplyScalar(1 / 3);
+
+        const distance = center.distanceTo(localSeed);
+
+        if (distance <= growthRadius) {
+            selectedTriangles.push(t);
+        }
+    }
+
+    if (selectedTriangles.length === 0) {
+        status.textContent = "No tooth region could be extracted.";
+        return;
+    }
+
+    // Build an independent geometry from the selected triangles
+    const extractedPositions = [];
+
+    for (const t of selectedTriangles) {
+        const i = t * 9;
+
+        for (let j = 0; j < 9; j++) {
+            extractedPositions.push(position.array[i + j]);
+        }
+    }
+
+    const extractedGeometry = new THREE.BufferGeometry();
+
+    extractedGeometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+            extractedPositions,
+            3
+        )
+    );
+
+    extractedGeometry.computeVertexNormals();
+
+    const extractedMaterial = new THREE.MeshStandardMaterial({
+        color: 0xff66cc,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide
+    });
+
+    const toothCandidate = new THREE.Mesh(
+        extractedGeometry,
+        extractedMaterial
+    );
+
+    toothCandidate.position.copy(dentalMesh.position);
+    toothCandidate.rotation.copy(dentalMesh.rotation);
+    toothCandidate.scale.copy(dentalMesh.scale);
+
+    scene.add(toothCandidate);
 
     selectionInfo.style.display = "block";
+
     selectionText.textContent =
-        "Segmentation seed recorded at the selected tooth surface.";
+        "Tooth region extracted — candidate independent mesh.";
 
     status.textContent =
-        "Segmentation seed ready for tooth-region growth.";
+        "V4 tooth-region extraction complete.";
 }
     function clearSelection() {
 
