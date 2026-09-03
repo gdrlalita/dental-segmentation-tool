@@ -165,6 +165,9 @@ button.select-mode.active {
     <button id="clearButton" class="secondary">
         Clear Selection
     </button>
+    <button id="analyzeButton" class="secondary">
+    🔬 Analyze Mesh
+</button>
 
     <button id="aboutButton" class="secondary">
         About
@@ -219,6 +222,7 @@ const selectButton = document.getElementById("selectButton");
 const resetButton = document.getElementById("resetButton");
 const clearButton = document.getElementById("clearButton");
 const aboutButton = document.getElementById("aboutButton");
+    const analyzeButton = document.getElementById("analyzeButton");
 
 const selectionInfo = document.getElementById("selectionInfo");
 const selectionText = document.getElementById("selectionText");
@@ -301,6 +305,7 @@ function init() {
     resetButton.addEventListener("click", resetView);
     clearButton.addEventListener("click", clearSelection);
     aboutButton.addEventListener("click", showAbout);
+    analyzeButton.addEventListener("click", analyzeMesh);
 
     status.textContent =
         "Ready. Load an STL dental scan.";
@@ -750,7 +755,168 @@ function resetView() {
         "View reset.";
 }
 
-function showAbout() {
+function analyzeMesh() {
+    if (!dentalMesh) {
+        status.textContent = "Load an STL before analyzing the mesh.";
+        return;
+    }
+
+    const geometry = dentalMesh.geometry;
+    const position = geometry.attributes.position;
+
+    const vertexCount = position ? position.count : 0;
+
+    const triangleCount = geometry.index
+        ? geometry.index.count / 3
+        : vertexCount / 3;
+
+    const bytes =
+        vertexCount * 3 * 4 +
+        triangleCount * 3 * 4;
+
+    const sizeMB = bytes / (1024 * 1024);
+
+    status.textContent = "Analyzing mesh...";
+
+    setTimeout(() => {
+        const components = countConnectedComponents(geometry);
+
+        analysisText.innerHTML =
+            "Vertices: " +
+            vertexCount.toLocaleString() +
+            "<br>" +
+            "Triangles: " +
+            Math.round(triangleCount).toLocaleString() +
+            "<br>" +
+            "Approx. geometry memory: " +
+            sizeMB.toFixed(1) +
+            " MB<br>" +
+            "Connected components: <b>" +
+            components +
+            "</b>";
+
+        analysisInfo.style.display = "block";
+
+        status.textContent = "Mesh analysis complete.";
+    }, 20);
+}
+
+function countConnectedComponents(geometry) {
+    const position = geometry.attributes.position;
+
+    if (!position || position.count === 0) {
+        return 0;
+    }
+
+    const index = geometry.index;
+
+    const triangleCount = index
+        ? index.count / 3
+        : position.count / 3;
+
+    const keyToId = new Map();
+    const parent = [];
+    const rank = [];
+
+    const box = geometry.boundingBox;
+
+    const maxDimension = box
+        ? Math.max(
+            box.max.x - box.min.x,
+            box.max.y - box.min.y,
+            box.max.z - box.min.z
+        )
+        : 80;
+
+    const tolerance = maxDimension * 1e-5;
+
+    function getId(x, y, z) {
+        const key =
+            Math.round(x / tolerance) +
+            "," +
+            Math.round(y / tolerance) +
+            "," +
+            Math.round(z / tolerance);
+
+        let id = keyToId.get(key);
+
+        if (id === undefined) {
+            id = parent.length;
+            parent.push(id);
+            rank.push(0);
+            keyToId.set(key, id);
+        }
+
+        return id;
+    }
+
+    function find(x) {
+        while (parent[x] !== x) {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+
+        return x;
+    }
+
+    function union(a, b) {
+        a = find(a);
+        b = find(b);
+
+        if (a === b) {
+            return;
+        }
+
+        if (rank[a] < rank[b]) {
+            const temp = a;
+            a = b;
+            b = temp;
+        }
+
+        parent[b] = a;
+
+        if (rank[a] === rank[b]) {
+            rank[a]++;
+        }
+    }
+
+    const v = new THREE.Vector3();
+
+    for (let i = 0; i < triangleCount; i++) {
+        const ia = index
+            ? index.getX(i * 3)
+            : i * 3;
+
+        const ib = index
+            ? index.getX(i * 3 + 1)
+            : i * 3 + 1;
+
+        const ic = index
+            ? index.getX(i * 3 + 2)
+            : i * 3 + 2;
+
+        v.fromBufferAttribute(position, ia);
+        const a = getId(v.x, v.y, v.z);
+
+        v.fromBufferAttribute(position, ib);
+        const b = getId(v.x, v.y, v.z);
+
+        v.fromBufferAttribute(position, ic);
+        const c = getId(v.x, v.y, v.z);
+
+        union(a, b);
+        union(b, c);
+    }
+
+    const roots = new Set();
+
+    for (let i = 0; i < parent.length; i++) {
+        roots.add(find(i));
+    }
+
+    return roots.size;
+}
+    function showAbout() {
 
     alert(
         "Dental 3D Segmentation Tool\\n\\n" +
