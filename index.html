@@ -642,7 +642,26 @@ function highlightLocalArea(worldPoint) {
     status.textContent =
         "Tooth area selected. This is a segmentation candidate.";
 }   
-function clearSelection() {
+function createSegmentationCandidate() {
+    if (!dentalMesh || !selectedSeedPoint) {
+        status.textContent = "Select a tooth surface first.";
+        return;
+    }
+
+    status.textContent = "Preparing segmentation candidate...";
+
+    // For now, use the stored 3D click point as the seed.
+    // The next stage will grow this seed into an actual tooth surface region.
+    const seed = selectedSeedPoint.clone();
+
+    selectionInfo.style.display = "block";
+    selectionText.textContent =
+        "Segmentation seed recorded at the selected tooth surface.";
+
+    status.textContent =
+        "Segmentation seed ready for tooth-region growth.";
+}
+    function clearSelection() {
 
     if (selectedPatch) {
 
