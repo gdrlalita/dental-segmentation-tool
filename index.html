@@ -414,6 +414,10 @@ fileInput.addEventListener("change", function(event) {
 });
 
 function loadDentalModel(geometry, fileName) {
+        // Register the loaded scan in the current case
+    caseState.upperJaw.scanFile = fileName;
+    caseState.upperJaw.teeth.clear();
+    caseState.stages = [];
 
     if (dentalMesh) {
 
