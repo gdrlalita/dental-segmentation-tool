@@ -244,6 +244,37 @@ let originalMaterial = null;
 
 let selecting = false;
 let selectedPatch = null;
+    // ===== CASE AND TOOTH DATA MODEL =====
+
+const caseState = {
+    caseId: null,
+    patientName: "",
+    upperJaw: {
+        scanFile: null,
+        teeth: new Map()
+    },
+    lowerJaw: {
+        scanFile: null,
+        teeth: new Map()
+    },
+    stages: []
+};
+
+function createToothRecord(fdiNumber) {
+    return {
+        fdi: fdiNumber,
+        mesh: null,
+        originalPosition: null,
+        plannedPosition: null,
+        movement: {
+            translation: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 }
+        },
+        attachment: null,
+        ipr: 0,
+        stage: 0
+    };
+}
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
