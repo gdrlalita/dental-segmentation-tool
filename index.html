@@ -595,6 +595,7 @@ function onViewerClick(event) {
 
 function highlightLocalArea(worldPoint) {
     clearSelection();
+    selectedSeedPoint = worldPoint.clone();
 
     if (!dentalMesh) {
         status.textContent = "Load an STL first.";
