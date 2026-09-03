@@ -558,179 +558,53 @@ function onViewerClick(event) {
 }
 
 function highlightLocalArea(worldPoint) {
-
     clearSelection();
 
-    const geometry =
-        dentalMesh.geometry;
-
-    const position =
-        geometry.attributes.position;
-
-    const vertexCount =
-        position.count;
-
-    const localPoint =
-        dentalMesh.worldToLocal(
-            worldPoint.clone()
-        );
-
-    let nearestVertex = 0;
-    let nearestDistance = Infinity;
-
-    const temp = new THREE.Vector3();
-
-    for (let i = 0; i < vertexCount; i++) {
-
-        temp.fromBufferAttribute(position, i);
-
-        const distance =
-            temp.distanceToSquared(localPoint);
-
-        if (distance < nearestDistance) {
-
-            nearestDistance = distance;
-            nearestVertex = i;
-        }
-    }
-
-    const center =
-        new THREE.Vector3().fromBufferAttribute(
-            position,
-            nearestVertex
-        );
-
-    const highlightGeometry =
-        geometry.clone();
-
-    const highlightMaterial =
-        new THREE.MeshStandardMaterial({
-            color: 0xff4d6d,
-            roughness: 0.55,
-            metalness: 0.02,
-            transparent: true,
-            opacity: 0.78,
-            depthWrite: false
-        });
-
-    const highlightMesh =
-        new THREE.Mesh(
-            highlightGeometry,
-            highlightMaterial
-        );
-
-    highlightMesh.position.copy(dentalMesh.position);
-    highlightMesh.rotation.copy(dentalMesh.rotation);
-    highlightMesh.scale.copy(dentalMesh.scale);
-
-    const pos =
-        highlightGeometry.attributes.position;
-
-    const radius =
-        Math.max(
-            geometry.boundingSphere
-                ? geometry.boundingSphere.radius * 0.11
-                : 4,
-            1.5
-        );
-
-    const radiusSquared =
-        radius * radius;
-
-    const index =
-        highlightGeometry.index;
-
-    const visible =
-        new Uint8Array(
-            index ? index.count : pos.count
-        );
-
-    for (
-        let i = 0;
-        i < (index ? index.count : pos.count);
-        i++
-    ) {
-
-        const vertexIndex =
-            index
-                ? index.getX(i)
-                : i;
-
-        temp.fromBufferAttribute(
-            pos,
-            vertexIndex
-        );
-
-        if (
-            temp.distanceToSquared(center)
-            <= radiusSquared
-        ) {
-            visible[i] = 1;
-        }
-    }
-
-    const selectedPositions = [];
-
-    for (
-        let i = 0;
-        i < (index ? index.count : pos.count);
-        i += 3
-    ) {
-
-        const a = visible[i];
-        const b = visible[i + 1];
-        const c = visible[i + 2];
-
-        if (a || b || c) {
-
-            for (let j = 0; j < 3; j++) {
-
-                const vertexIndex =
-                    index
-                        ? index.getX(i + j)
-                        : i + j;
-
-                selectedPositions.push(
-                    pos.getX(vertexIndex),
-                    pos.getY(vertexIndex),
-                    pos.getZ(vertexIndex)
-                );
-            }
-        }
-    }
-
-    if (selectedPositions.length === 0) {
-
-        highlightGeometry.dispose();
-        highlightMaterial.dispose();
-
+    if (!dentalMesh) {
+        status.textContent = "Load an STL first.";
         return;
     }
 
-    highlightGeometry.dispose();
+    // Create a small visual selection marker around the clicked tooth surface
+    const box = new THREE.Box3().setFromObject(dentalMesh);
+    const size = new THREE.Vector3();
+    box.getSize(size);
 
-    const patchGeometry =
-        new THREE.BufferGeometry();
+    const markerRadius = Math.max(
+        size.x,
+        size.y,
+        size.z
+    ) * 0.025;
 
-    patchGeometry.setAttribute(
-        "position",
-        new THREE.Float32BufferAttribute(
-            selectedPositions,
-            3
-        )
+    const markerGeometry = new THREE.SphereGeometry(
+        markerRadius,
+        24,
+        16
     );
 
-    patchGeometry.computeVertexNormals();
+    const markerMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff66cc,
+        transparent: true,
+        opacity: 0.35,
+        depthWrite: false
+    });
 
-    selectedPatch =
-        new THREE.Mesh(
-            patchGeometry,
-            highlightMaterial
-        );
+    selectedPatch = new THREE.Mesh(
+        markerGeometry,
+        markerMaterial
+    );
+
+    selectedPatch.position.copy(worldPoint);
 
     scene.add(selectedPatch);
-}
 
+    selectionInfo.style.display = "block";
+    selectionText.textContent =
+        "Selected tooth area — candidate surface";
+
+    status.textContent =
+        "Tooth area selected. This is a segmentation candidate.";
+}   
 function clearSelection() {
 
     if (selectedPatch) {
